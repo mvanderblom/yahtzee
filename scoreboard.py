@@ -1,9 +1,13 @@
+from dataclasses import dataclass
+from typing import List
+
 from exceptions import GameException
 from rules import SingleRule, NOfAKindRule, FulHouseRule, StraightRule, YahtzeeRule, ChanceRule
 
 
-class ScoreBoard(object):
-
+# @dataclass
+class ScoreBoard:
+    # rules: List[YahtzeeRule]
     def __init__(self):
         self.rules = {
             1: (SingleRule(1), None),
