@@ -2,82 +2,88 @@ import unittest
 from yahtzee import *
 
 
-class HandTestCase(unittest.TestCase):
+class SingleRuleTestCase(unittest.TestCase):
 
-    def test_hand_number_of_dice(self):
-        hand = Hand(15, 6)
-        self.assertEqual(len(hand.hand), 15)
+    def test_single_one(self):
+        dice = [1]
+        self.assertEqual(1, SingleRule(1).get_score(dice))
 
-    def test_hand_sides_per_die(self):
-        hand = Hand(5, 18)
-        for i in hand.hand:
-            self.assertEqual(i.sides, 18)
+    def test_single_six(self):
+        dice = [6]
+        self.assertEqual(6, SingleRule(6).get_score(dice))
+
+    def test_sixes(self):
+        dice = [6, 6, 1]
+        self.assertEqual(12, SingleRule(6).get_score(dice))
+
+    def test_get_label_aces(self):
+        self.assertEqual('Aces', SingleRule(1).get_label())
+
+    def test_get_label_sixes(self):
+        self.assertEqual('6\'s', SingleRule(6).get_label())
 
 
-class RulesTestCase(unittest.TestCase):
-
-    def test_aces(self):
-        hand = Hand()
-        for i in hand.hand:
-            i._Die__face = 1
-        self.assertEqual(Rules().aces(hand), 5)
+class NOfAKindRuleTestCase(unittest.TestCase):
+    def test_non_of_a_kind(self):
+        dice = [1]
+        self.assertEqual(0, NOfAKindRule(3).get_score(dice))
 
     def test_three_of_a_kind(self):
-        hand = Hand()
-        for i in range(3):
-            hand.hand[i]._Die__face = 1
-        for i in range(3, 5):
-            hand.hand[i]._Die__face = 2
-        self.assertEqual(Rules().three_of_a_kind(hand), 7)
+        dice = [2, 3, 4, 4, 4]
+        self.assertEqual(17, NOfAKindRule(3).get_score(dice))
 
-    def test_four_of_a_kind(self):
-        hand = Hand()
-        for i in range(4):
-            hand.hand[i]._Die__face = 1
-        for i in range(4, 5):
-            hand.hand[i]._Die__face = 2
-        self.assertEqual(Rules().four_of_a_kind(hand), 6)
+    def test_yathzee_as_three_of_a_kind(self):
+        dice = [4, 4, 4, 4, 4]
+        self.assertEqual(20, NOfAKindRule(3).get_score(dice))
+
+
+class FullHouseRuleTestCase(unittest.TestCase):
+    def test_empty_house(self):
+        dice = [1]
+        self.assertEqual(0, FulHouseRule().get_score(dice))
 
     def test_full_house(self):
-        hand = Hand()
-        for i in range(1):
-            hand.hand[i]._Die__face = 2
-        for i in range(1, 3):
-            hand.hand[i]._Die__face = 2
-        for i in range(3, 5):
-            hand.hand[i]._Die__face = 3
-        self.assertEqual(Rules().full_house(hand), 25)
+        dice = [1, 1, 1, 2, 2]
+        self.assertEqual(25, FulHouseRule().get_score(dice))
+
+
+class StraightRuleTestCase(unittest.TestCase):
+    def test_no_straight(self):
+        dice = [1, 2, 4, 4, 5]
+        self.assertEqual(0, StraightRule(3).get_score(dice))
 
     def test_small_straight(self):
-        hand = Hand()
-        hand.hand[0]._Die__face = 4
-        hand.hand[1]._Die__face = 3
-        hand.hand[2]._Die__face = 5
-        hand.hand[3]._Die__face = 2
-        hand.hand[4]._Die__face = 5
-        self.assertEqual(Rules().small_straight(hand), 30)
+        dice = [1, 2, 3, 3, 3]
+        self.assertEqual(30, StraightRule(3).get_score(dice))
 
-    def test_large_straight(self):
-        hand = Hand()
-        hand.hand[0]._Die__face = 4
-        hand.hand[1]._Die__face = 3
-        hand.hand[2]._Die__face = 5
-        hand.hand[3]._Die__face = 2
-        hand.hand[4]._Die__face = 1
-        self.assertEqual(Rules().large_straight(hand), 40)
+    def test_small_straight_with_large_straight_dice(self):
+        dice = [1, 2, 3, 4, 3]
+        self.assertEqual(30, StraightRule(3).get_score(dice))
+
+    def test_large_straight_at_the_start(self):
+        dice = [1, 2, 3, 4, 3]
+        self.assertEqual(40, StraightRule(4).get_score(dice))
+
+    def test_large_straight_at_the_end(self):
+        dice = [1, 1, 2, 3, 4]
+        self.assertEqual(40, StraightRule(4).get_score(dice))
+
+    def test_large_straight_al_the_way(self):
+        dice = [1, 2, 3, 4, 5]
+        self.assertEqual(40, StraightRule(4).get_score(dice))
+
+
+class YahtzeeRuleTestCase(unittest.TestCase):
+    def test_no_yahtzee(self):
+        dice = [1, 2, 3, 4, 5]
+        self.assertEqual(0, YahtzeeRule().get_score(dice))
 
     def test_yahtzee(self):
-        hand = Hand()
-        for i in hand.hand:
-            i._Die__face = 3
-        self.assertEqual(Rules().yahtzee(hand), 50)
-
-    def test_chance(self):
-        hand = Hand()
-        for i in range(5):
-            hand.hand[i]._Die__face = i + 1
-        self.assertEqual(Rules().chance(hand), 15)
+        dice = [5, 5, 5, 5, 5]
+        self.assertEqual(50, YahtzeeRule().get_score(dice))
 
 
-if __name__ == '__main__':
-    unittest.main()
+class ChanceRuleTestCase(unittest.TestCase):
+    def test_no_yahtzee(self):
+        dice = [1, 2, 3, 4, 5]
+        self.assertEqual(15, ChanceRule().get_score(dice))
