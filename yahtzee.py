@@ -4,32 +4,17 @@ import random
 import re
 from rules import *
 
-@dataclass
-class Die:
-    value: int = None
-
-    def roll(self):
-        self.value = random.randint(1, 6)
-
-    def clear(self):
-        self.value = None
-
-    def __str__(self):
-        return f"Value: {self.value}"
-
 
 class Hand:
 
     def __init__(self):
-        self.dice = [Die() for i in range(0, 5)]
+        self.dice = [0 for i in range(0, 5)]
 
     def throw(self):
-        for die in self.dice:
-            die.roll()
+        self.dice = [random.randint(1, 6) for i in range(0, 5)]
 
     def clear(self):
-        for die in self.dice:
-            die.clear()
+        self.dice = [0 for i in range(0, 5)]
 
     def re_roll(self):
         rolls = 0
@@ -59,7 +44,7 @@ class Hand:
                 break
             else:
                 for i in reroll:
-                    self.dice[i - 1].roll()
+                    self.dice[i - 1] = random.randint(1, 6)
                 print(self.dice)
                 rolls += 1
 
@@ -147,11 +132,11 @@ class ScoreBoard(object):
 
             score_saved = self.set_scoreboard_row_value(
                 int(scoreboard_row),
-                self._scoreboard_rows[int(scoreboard_row)].get_score(map(lambda die: die.value, hand.dice))
+                self._scoreboard_rows[int(scoreboard_row)].get_score(hand.dice)
             )
 
     def is_full(self):
-        return len(self._scoreboard_points) < len(self._scoreboard_rows)
+        return len(self._scoreboard_points) == len(self._scoreboard_rows)
 
 
 def main():
