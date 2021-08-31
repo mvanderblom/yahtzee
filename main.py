@@ -26,7 +26,7 @@ if __name__ == '__main__':
             ChanceRule(),
         ])
 
-        Yahtzee(view).start()
+        Yahtzee(view, scoreboard).start()
     except KeyboardInterrupt:
         print("\nExiting...")
         try:

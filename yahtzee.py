@@ -38,7 +38,7 @@ class Yahtzee:
     def _record_score(self):
         self.view.show_score_board(self.scoreboard)
         while True:
-            score_num = self.view.get_score_rule_num(self.dice, self.scoreboard)
+            score_num = self.view.get_score_rule_index(self.dice, self.scoreboard)
             try:
                 self.scoreboard.set_score(score_num, self.dice)
                 break

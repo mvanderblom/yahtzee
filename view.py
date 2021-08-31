@@ -27,7 +27,7 @@ class YahtzeeView(ABC):
     def get_re_roll_dice_nums(self) -> List[int]:
         pass
 
-    def get_score_rule_num(self, dice: List[int], scoreboard: ScoreBoard) -> int:
+    def get_score_rule_index(self, dice: List[int], scoreboard: ScoreBoard) -> int:
         pass
 
 
@@ -46,13 +46,11 @@ class ConsoleView(YahtzeeView):
     def show_score_board(self, scoreboard):
         print("SCOREBOARD")
         print("===================================")
-        for idx, row in scoreboard.rules.items():
-            try:
-                print("{:<2} {:<21}| {:2} points".format(idx,
-                                                         row[0].get_label(),
-                                                         row[1] if row[1] is not None else ""))
-            except KeyError:
-                print("{:<2} {:<21}|".format(idx, row.get_label()))
+        for idx, rule in enumerate(scoreboard.rules):
+            score = scoreboard.scores[idx]
+            print("{:<2} {:<21}| {:2} points".format(idx + 1,
+                                                     rule.get_label(),
+                                                     score if score is not None else ""))
         print("===================================")
 
     def show_after_turn(self, scoreboard):
@@ -81,11 +79,11 @@ class ConsoleView(YahtzeeView):
 
         return list(map(int, user_value))
 
-    def get_score_rule_num(self, dice: List[int], scoreboard: ScoreBoard) -> int:
+    def get_score_rule_index(self, dice: List[int], scoreboard: ScoreBoard) -> int:
         print(dice)
         while True:
             try:
-                return self._get_int_input("Choose which rule to use: ", 1, len(scoreboard.rules))
+                return self._get_int_input("Choose which rule to use: ", 1, len(scoreboard.rules)) - 1
             except InputException as exception:
                 print(exception)
                 continue
