@@ -6,7 +6,7 @@ from view import YahtzeeView
 
 
 class Yahtzee:
-    def __init__(self, view: YahtzeeView, scoreboard=ScoreBoard()) -> None:
+    def __init__(self, view: YahtzeeView, scoreboard: ScoreBoard) -> None:
         self.dice = [0 for i in range(0, 5)]
         self.view = view
         self.scoreboard = scoreboard
