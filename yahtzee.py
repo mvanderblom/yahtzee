@@ -1,11 +1,8 @@
-import abc
 import sys
 import os
 import random
 import re
-from dataclasses import dataclass
-from typing import List
-
+from rules import *
 
 @dataclass
 class Die:
@@ -67,102 +64,11 @@ class Hand:
                 rolls += 1
 
 
-class Rule(abc.ABC):
-    @abc.abstractmethod
-    def get_label(self) -> str:
-        pass
+class ScoreBoard(object):
 
-    @abc.abstractmethod
-    def get_score(self, dice: List[int]):
-        pass
-
-@dataclass
-class SingleRule(Rule):
-    value: int
-
-    def get_label(self) -> str:
-        return 'Aces' if self.value == 1 else f'{self.value}\'s'
-
-    def get_score(self, dice: List[int]):
-        return sum(filter(lambda die: die == self.value, dice))
-
-@dataclass
-class NOfAKindRule(Rule):
-    value: int
-
-    def get_label(self) -> str:
-        return f'{self.value} of a kind'
-
-    def get_score(self, dice: List[int]):
-        for i in dice:
-            if dice.count(i) >= 3:
-                return sum(dice)
-        return 0
-
-
-class FulHouseRule(Rule):
-
-    def get_label(self) -> str:
-        return 'Full House'
-
-    def get_score(self, dice: List[int]):
-        count = {i: 0 for i in range(1, 7)}
-        for die in dice:
-            count[die] += 1
-
-        counts = count.values()
-        return 25 if 2 in counts and 3 in counts else 0
-
-@dataclass
-class StraightRule(Rule):
-    length: int
-
-    def get_label(self) -> str:
-        labels = {
-            3: "Small Straight",
-            4: "Large Straight"
-        }
-        return labels[self.length] if self.length in labels else f"Anything-can-happen-Straight of length {self.length}"
-
-    def get_score(self, dice: List[int]):
-        sorted_die_values = sorted(set(dice))
-
-        last_val = sorted_die_values[0]
-        count = 1
-        for val in sorted_die_values[1:]:
-            if last_val is val - 1:
-                count += 1
-
-                if count >= self.length:
-                    return self.length * 10
-            else:
-                count = 1
-            last_val = val
-
-        return 0
-
-
-class YahtzeeRule(Rule):
-
-    def get_label(self) -> str:
-        return "Yahtzee"
-
-    def get_score(self, dice: List[int]):
-        if len(set(dice)) == 1:
-            return 50
-        return 0
-
-
-class ChanceRule(Rule):
-
-    def get_label(self) -> str:
-        return "Chance"
-
-    def get_score(self, dice: List[int]):
-        return sum(dice)
-
-
-scoreboard_rows = {
+    def __init__(self):
+        self._scoreboard_points = {}
+        self._scoreboard_rows = {
             1: SingleRule(1),
             2: SingleRule(2),
             3: SingleRule(3),
@@ -178,13 +84,8 @@ scoreboard_rows = {
             13: ChanceRule(),
         }
 
-class ScoreBoard(object):
-
-    def __init__(self):
-        self._scoreboard_points = {}
-
     def set_scoreboard_row_value(self, row, value):
-        if row not in scoreboard_rows.keys():
+        if row not in self._scoreboard_rows.keys():
             print("Bad row index")
             return False
 
@@ -194,7 +95,7 @@ class ScoreBoard(object):
 
         print("Adding {} points to {}".format(
             value,
-            scoreboard_rows[int(row)])
+            self._scoreboard_rows[int(row)])
         )
         self._scoreboard_points[row] = value
         return True
@@ -203,13 +104,13 @@ class ScoreBoard(object):
         return self._scoreboard_points
 
     def show_scoreboard_rows(self):
-        for key, val in scoreboard_rows.items():
+        for key, val in self._scoreboard_rows.items():
             print("{}. {}".format(key, val.get_label()))
 
     def show_scoreboard_points(self):
         print("\nSCOREBOARD")
         print("===================================")
-        for idx, row in scoreboard_rows.items():
+        for idx, row in self._scoreboard_rows.items():
             try:
                 print("{:<2} {:<21}| {:2} points".format(idx,
                                                          row.get_label(),
@@ -239,23 +140,25 @@ class ScoreBoard(object):
                 scoreboard_row = False
                 continue
 
-            if scoreboard_row > len(scoreboard_rows):
+            if scoreboard_row > len(self._scoreboard_rows):
                 print("Please select an existing scoring rule.")
                 scoreboard_row = False
                 continue
 
             score_saved = self.set_scoreboard_row_value(
                 int(scoreboard_row),
-                scoreboard_rows[int(scoreboard_row)].get_score(map(lambda die: die.value, hand.dice))
+                self._scoreboard_rows[int(scoreboard_row)].get_score(map(lambda die: die.value, hand.dice))
             )
+
+    def is_full(self):
+        return len(self._scoreboard_points) < len(self._scoreboard_rows)
 
 
 def main():
     hand = Hand()
     scoreboard = ScoreBoard()
 
-    # We keep going until the scoreboard is full
-    while len(scoreboard.get_scoreboard_points()) < len(scoreboard_rows):
+    while not scoreboard.is_full():
         hand.throw()
         print(hand.dice)
         hand.re_roll()

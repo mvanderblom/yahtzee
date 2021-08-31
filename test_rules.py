@@ -1,5 +1,5 @@
 import unittest
-from yahtzee import *
+from rules import *
 
 
 class SingleRuleTestCase(unittest.TestCase):
