@@ -10,11 +10,8 @@ class Hand:
     def __init__(self):
         self.dice = [0 for i in range(0, 5)]
 
-    def throw(self):
+    def roll(self):
         self.dice = [random.randint(1, 6) for i in range(0, 5)]
-
-    def clear(self):
-        self.dice = [0 for i in range(0, 5)]
 
     def re_roll(self):
         rolls = 0
@@ -49,127 +46,138 @@ class Hand:
                 rolls += 1
 
 
+class GameException(Exception):
+    pass
+
+
+class InputException(Exception):
+    pass
+
+
 class ScoreBoard(object):
 
     def __init__(self):
-        self._scoreboard_points = {}
-        self._scoreboard_rows = {
-            1: SingleRule(1),
-            2: SingleRule(2),
-            3: SingleRule(3),
-            4: SingleRule(4),
-            5: SingleRule(5),
-            6: SingleRule(6),
-            7: NOfAKindRule(3),
-            8: NOfAKindRule(4),
-            9: FulHouseRule(),
-            10: StraightRule(3),
-            11: StraightRule(4),
-            12: YahtzeeRule(),
-            13: ChanceRule(),
+        self.rules = {
+            1: (SingleRule(1), None),
+            2: (SingleRule(2), None),
+            3: (SingleRule(3), None),
+            4: (SingleRule(4), None),
+            5: (SingleRule(5), None),
+            6: (SingleRule(6), None),
+            7: (NOfAKindRule(3), None),
+            8: (NOfAKindRule(4), None),
+            9: (FulHouseRule(), None),
+            10: (StraightRule(3), None),
+            11: (StraightRule(4), None),
+            12: (YahtzeeRule(), None),
+            13: (ChanceRule(), None),
         }
 
-    def set_scoreboard_row_value(self, row, value):
-        if row not in self._scoreboard_rows.keys():
-            print("Bad row index")
-            return False
+    def set_score(self, rule_key, dice):
+        if rule_key not in self.rules.keys():
+            raise GameException(f'Unknown rule key {rule_key}')
 
-        if row in self._scoreboard_points.keys():
-            print("ScoreBoard already saved!")
-            return False
+        rule, score = self.rules[rule_key]
+        if score is not None:
+            raise GameException(f'Score for rule {rule.get_label()} allready saved')
 
-        print("Adding {} points to {}".format(
-            value,
-            self._scoreboard_rows[int(row)])
-        )
-        self._scoreboard_points[row] = value
-        return True
+        self.rules[rule_key] = (rule, rule.get_score(dice))
 
-    def get_scoreboard_points(self):
-        return self._scoreboard_points
+    def is_full(self):
+        return len(list(filter(lambda val: val[1] is None, self.rules.values()))) == 0
 
-    def show_scoreboard_rows(self):
-        for key, val in self._scoreboard_rows.items():
-            print("{}. {}".format(key, val.get_label()))
+    def get_total(self):
+        return sum(filter(lambda  val: val[1] is not None, map(lambda _, score: score, self.rules.values())))
 
-    def show_scoreboard_points(self):
+
+class ConsoleGame:
+
+    def __init__(self, hand=Hand(), scoreboard=ScoreBoard()) -> None:
+        self.hand = hand
+        self.scoreboard = scoreboard
+
+    def start(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("""
+                    YAHTZEE
+
+                    Welcome to the game. To begin, simply press [Enter]
+                    and follow the instructions on the screen.
+
+                    To exit, press [Ctrl+C]
+                    """)
+
+        self.main_loop()
+
+        print("\nCongratulations! You finished the game!\n")
+        print(f"Total points: {self.scoreboard.get_total()}")
+
+    def main_loop(self):
+        while not self.scoreboard.is_full():
+            self.rol_dice()
+            self.hand.re_roll()
+            self.show_scoreboard()
+            self.select_scoring_rule(self.hand.dice)
+            self.show_scoreboard()
+
+            input("\nPress any key to continue")
+            os.system('cls' if os.name == 'nt' else 'clear')
+
+    def rol_dice(self):
+        print("Rolling the dice...")
+        self.hand.roll()
+        print(self.hand.dice)
+
+    def select_scoring_rule(self, dice):
+        while True:
+            try:
+                row_number = self._get_int_input("Choose which rule to use (leave empty to show available rules): ", 1, len(self.scoreboard.rules))
+            except InputException as exception:
+                print(exception)
+                continue
+
+            try:
+                self.scoreboard.set_score(row_number, dice)
+                break
+            except GameException as exception:
+                print(exception)
+
+    def show_scoreboard(self):
         print("\nSCOREBOARD")
         print("===================================")
-        for idx, row in self._scoreboard_rows.items():
+        for idx, row in self.scoreboard.rules.items():
             try:
                 print("{:<2} {:<21}| {:2} points".format(idx,
-                                                         row.get_label(),
-                                                         self._scoreboard_points[idx]))
+                                                         row[0].get_label(),
+                                                         row[1] if row[1] is not None else ""))
             except KeyError:
                 print("{:<2} {:<21}|".format(idx, row.get_label()))
         print("===================================")
 
-    def select_scoring(self, hand):
-        msg = "Choose which scoring to use  (leave empty to show available rows): "
+    @staticmethod
+    def _get_int_input(message: str, lower_bound: int = None, upper_bound: int = None):
+        user_value = input(message)
 
-        scoreboard_row = False
-        score_saved = False
-        while not scoreboard_row and not score_saved:
-            scoreboard_row = input(msg)
+        if user_value.strip() == "":
+            raise InputException("No value provided")
 
-            if scoreboard_row.strip() == "":
-                self.show_scoreboard_points()
-                scoreboard_row = False
-                continue
+        try:
+            user_value = int(user_value)
+        except ValueError:
+            raise InputException("You entered something other than a number.")
 
-            try:
-                scoreboard_row = int(re.sub('[^0-9,]', '', scoreboard_row))
-            except ValueError:
-                print("You entered something other than a number.")
-                print("Please try again")
-                scoreboard_row = False
-                continue
+        if lower_bound is not None and user_value < lower_bound:
+            raise InputException(f"Value should be higher than {lower_bound}")
 
-            if scoreboard_row > len(self._scoreboard_rows):
-                print("Please select an existing scoring rule.")
-                scoreboard_row = False
-                continue
+        if upper_bound is not None and user_value > upper_bound:
+            raise InputException(f"Value should be lower than {upper_bound}")
 
-            score_saved = self.set_scoreboard_row_value(
-                int(scoreboard_row),
-                self._scoreboard_rows[int(scoreboard_row)].get_score(hand.dice)
-            )
-
-    def is_full(self):
-        return len(self._scoreboard_points) == len(self._scoreboard_rows)
-
-
-def main():
-    hand = Hand()
-    scoreboard = ScoreBoard()
-
-    while not scoreboard.is_full():
-        hand.throw()
-        print(hand.dice)
-        hand.re_roll()
-        scoreboard.select_scoring(hand)
-        scoreboard.show_scoreboard_points()
-
-        input("\nPress any key to continue")
-        os.system('cls' if os.name == 'nt' else 'clear')
-
-    print("\nCongratulations! You finished the game!\n")
-    scoreboard.show_scoreboard_points()
-    print("Total points: {}".format(sum(scoreboard.get_scoreboard_points().values())))
+        return user_value
 
 
 if __name__ == '__main__':
     try:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print("""
-        YAHTZEE
-
-        Welcome to the game. To begin, simply press [Enter]
-        and follow the instructions on the screen.
-
-        To exit, press [Ctrl+C]
-        """)
-        main()
+        ConsoleGame().start()
     except KeyboardInterrupt:
         print("\nExiting...")
         try:
