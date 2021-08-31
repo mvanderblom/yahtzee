@@ -2,48 +2,8 @@ import sys
 import os
 import random
 import re
+
 from rules import *
-
-
-class Hand:
-
-    def __init__(self):
-        self.dice = [0 for i in range(0, 5)]
-
-    def roll(self):
-        self.dice = [random.randint(1, 6) for i in range(0, 5)]
-
-    def re_roll(self):
-        rolls = 0
-        while rolls < 2:
-            try:
-                reroll = input("\nChoose which dice to re-roll "
-                               "(comma-separated or 'all'), or 0 to continue: ")
-
-                if reroll.lower() == "all":
-                    reroll = list(range(1, 6))
-                else:
-                    # Perform some clean-up of input
-                    reroll = reroll.replace(" ", "")  # Remove spaces
-                    reroll = re.sub('[^0-9,]', '', reroll)  # Remove non-numerals
-                    reroll = reroll.split(",")  # Turn string into list
-                    reroll = list(map(int, reroll))  # Turn strings in list to int
-            except ValueError:
-                print("You entered something other than a number.")
-                print("Please try again")
-                continue
-
-            if [x for x in reroll if x > len(self.dice)]:
-                print("You only have 5 dice!")
-                continue
-
-            if not reroll or 0 in reroll:
-                break
-            else:
-                for i in reroll:
-                    self.dice[i - 1] = random.randint(1, 6)
-                print(self.dice)
-                rolls += 1
 
 
 class GameException(Exception):
@@ -79,7 +39,7 @@ class ScoreBoard(object):
 
         rule, score = self.rules[rule_key]
         if score is not None:
-            raise GameException(f'Score for rule {rule.get_label()} allready saved')
+            raise GameException(f'Score for rule {rule.get_label()} is allready used')
 
         self.rules[rule_key] = (rule, rule.get_score(dice))
 
@@ -87,65 +47,49 @@ class ScoreBoard(object):
         return len(list(filter(lambda val: val[1] is None, self.rules.values()))) == 0
 
     def get_total(self):
-        return sum(filter(lambda  val: val[1] is not None, map(lambda _, score: score, self.rules.values())))
+        return sum(filter(lambda val: val[1] is not None, map(lambda _, score: score, self.rules.values())))
 
 
-class ConsoleGame:
+class YahtzeeView(ABC):
 
-    def __init__(self, hand=Hand(), scoreboard=ScoreBoard()) -> None:
-        self.hand = hand
-        self.scoreboard = scoreboard
+    def show_start_message(self) -> None:
+        pass
 
-    def start(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print("""
-                    YAHTZEE
+    def show_dice_roll(self, dice: List[int], roll_num: int) -> None:
+        pass
 
-                    Welcome to the game. To begin, simply press [Enter]
-                    and follow the instructions on the screen.
+    def show_score_board(self, scoreboard: ScoreBoard) -> None:
+        pass
 
-                    To exit, press [Ctrl+C]
-                    """)
+    def show_end_message(self, scoreboard: ScoreBoard) -> None:
+        pass
 
-        self.main_loop()
+    def show_after_turn(self, scoreboard: ScoreBoard) -> None:
+        pass
 
-        print("\nCongratulations! You finished the game!\n")
-        print(f"Total points: {self.scoreboard.get_total()}")
+    def get_re_roll_dice_nums(self) -> List[int]:
+        pass
 
-    def main_loop(self):
-        while not self.scoreboard.is_full():
-            self.rol_dice()
-            self.hand.re_roll()
-            self.show_scoreboard()
-            self.select_scoring_rule(self.hand.dice)
-            self.show_scoreboard()
+    def get_score_rule_num(self, dice: List[int], scoreboard: ScoreBoard) -> int:
+        pass
 
-            input("\nPress any key to continue")
-            os.system('cls' if os.name == 'nt' else 'clear')
 
-    def rol_dice(self):
-        print("Rolling the dice...")
-        self.hand.roll()
-        print(self.hand.dice)
+class ConsoleView(YahtzeeView):
 
-    def select_scoring_rule(self, dice):
-        while True:
-            try:
-                row_number = self._get_int_input("Choose which rule to use (leave empty to show available rules): ", 1, len(self.scoreboard.rules))
-            except InputException as exception:
-                print(exception)
-                continue
+    def show_start_message(self):
+        print("YAHTZEE")
+        print("\nWelcome to the game. To begin, simply press [Enter]")
+        print("and follow the instructions on the screen.\n")
+        input()
 
-            try:
-                self.scoreboard.set_score(row_number, dice)
-                break
-            except GameException as exception:
-                print(exception)
+    def show_dice_roll(self, dice, roll_num):
+        print(f"Rolling the dice for the {self._display_roll_num(roll_num)} time ...")
+        print(dice)
 
-    def show_scoreboard(self):
-        print("\nSCOREBOARD")
+    def show_score_board(self, scoreboard):
+        print("SCOREBOARD")
         print("===================================")
-        for idx, row in self.scoreboard.rules.items():
+        for idx, row in scoreboard.rules.items():
             try:
                 print("{:<2} {:<21}| {:2} points".format(idx,
                                                          row[0].get_label(),
@@ -153,6 +97,41 @@ class ConsoleGame:
             except KeyError:
                 print("{:<2} {:<21}|".format(idx, row.get_label()))
         print("===================================")
+
+    def show_after_turn(self, scoreboard):
+        input("Turn finished, Press any key to continue")
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+    def show_end_message(self, scoreboard):
+        print("Congratulations! You finished the game!")
+        print(f"Total points: {self.scoreboard.get_total()}")
+
+    def get_re_roll_dice_nums(self) -> List[int]:
+        while True:
+            user_value = input("\nChoose which dice to re-roll (123 or '*' for all), or enter to continue: ")
+
+            if user_value == "*":
+                return list(range(1, 6))
+
+            if user_value == "":
+                return None
+
+            if not re.search('^[1-5]{0,5}$', user_value):
+                print(f"Invalid vaule '{user_value}' provided. Try again!")
+                continue
+
+            break
+
+        return list(map(int, user_value))
+
+    def get_score_rule_num(self, dice: List[int], scoreboard: ScoreBoard) -> int:
+        print(dice)
+        while True:
+            try:
+                return self._get_int_input("Choose which rule to use: ", 1, len(scoreboard.rules))
+            except InputException as exception:
+                print(exception)
+                continue
 
     @staticmethod
     def _get_int_input(message: str, lower_bound: int = None, upper_bound: int = None):
@@ -174,10 +153,67 @@ class ConsoleGame:
 
         return user_value
 
+    @staticmethod
+    def _display_roll_num(roll_num):
+        if roll_num == 1:
+            return "first"
+        elif roll_num == 2:
+            return "second"
+        elif roll_num == 3:
+            return "third"
+        return f"{roll_num}th"
+
+
+class YahtzeeGame:
+    def __init__(self, view: YahtzeeView, scoreboard=ScoreBoard()) -> None:
+        self.dice = [0 for i in range(0, 5)]
+        self.view = view
+        self.scoreboard = scoreboard
+
+    def start(self):
+        self.view.show_start_message()
+
+        while not self.scoreboard.is_full():
+            self._handle_turn()
+
+        self.view.show_end_message(self.scoreboard)
+
+    def _handle_turn(self):
+        roll_num = 1
+        dice_nums_to_roll = range(1, 6)
+        while roll_num <= 3:
+            self._rol_dice(dice_nums_to_roll)
+            self.view.show_dice_roll(self.dice, roll_num)
+
+            dice_nums_to_roll = self.view.get_re_roll_dice_nums()
+            if not dice_nums_to_roll:
+                break
+            roll_num += 1
+
+        self._record_score()
+
+        self.view.show_after_turn(self.scoreboard)
+
+    def _record_score(self):
+        self.view.show_score_board(self.scoreboard)
+        while True:
+            score_num = self.view.get_score_rule_num(self.dice, self.scoreboard)
+            try:
+                self.scoreboard.set_score(score_num, self.dice)
+                break
+            except GameException as exception:
+                print(exception)
+
+        self.view.show_score_board(self.scoreboard)
+
+    def _rol_dice(self, die_nums_to_roll):
+        for die_num in die_nums_to_roll:
+            self.dice[die_num - 1] = random.randint(1, 6)
+
 
 if __name__ == '__main__':
     try:
-        ConsoleGame().start()
+        YahtzeeGame(ConsoleView()).start()
     except KeyboardInterrupt:
         print("\nExiting...")
         try:
